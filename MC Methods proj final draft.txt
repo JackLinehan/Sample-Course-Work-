@@ -1,0 +1,186 @@
+library("pracma") 
+
+ptm <- proc.time()
+
+
+run_num = 10 
+
+############################################################################
+
+fair_price <- matrix(0,2,run_num) # row 1 = monthly row 2 = weekly
+
+N_1_list <- matrix(0,2,run_num)  
+
+#defining variables
+
+S_0<-50 #initial price
+
+sigma<-0.13 #volatility
+
+r<-0.01 #risk free interest rate
+
+MT<-1 #maturity after 1 year
+
+d_0<-c(12,52) #monitoring frequency
+
+beta<-0.15 #scale parameter
+
+K = 50 # Strike Price
+
+n_0<-c(10^4,10^3) #Guess sample sizes, n_0(1) for d = 12, n_0(2) for d = 52
+
+delta<-MT/d_0
+
+
+for (runner in 1:run_num){
+
+n_1 <- c(0,0) 
+
+count <- 1
+
+
+while (count <=2) {
+
+
+X = matrix(rnorm(n_0[count]*d_0[count]),nrow=n_0[count])
+
+
+Y = matrix(rgamma(n_0[count],delta[count]/beta, scale = beta),nrow=n_0[count],ncol = d_0[count]) # scale
+
+grid<-matrix(rep(seq(delta[count],T,length.out=d_0[count]),n_0[count]),nrow=n_0[count],byrow=TRUE) #time grid as matrix
+
+constant <- (r+(log(1-beta*sigma^2/2))/beta)*delta[count]
+
+S  = matrix(0, nrow=n_0[count],ncol = d_0[count])
+
+my_x = sqrt(Y)*t(apply(X,1,cumsum))
+
+S <- cbind(rep(S_0,n_0[count]),S_0*exp(constant*grid + sigma*my_x))
+
+S_T <- S[,d_0[count]] - K
+
+my_cat <- matrix(0,2,length(S_T))
+
+my_cat[1,] = S_T
+
+my_cat[2,] = 1:length(S_T)*0
+
+passer = apply(my_cat,2,max)*exp(-r*MT)
+
+n_1[count] <- round(((2.58*(1.1)*sd(passer)) / (0.05))^2) 
+
+N_1_list[count,runner] <- n_1[count] 
+
+###############################################################################################################################
+
+X = matrix(rnorm(n_0[count]*d_0[count]),nrow=n_0[count])
+
+
+Y = matrix(rgamma(n_0[count],delta[count]/beta, scale = beta),nrow=n_0[count],ncol = d_0[count]) # scale
+
+grid<-matrix(rep(seq(delta[count],T,length.out=d_0[count]),n_0[count]),nrow=n_0[count],byrow=TRUE) #time grid as matrix
+
+constant <- (r+(log(1-beta*sigma^2/2))/beta)*delta[count]
+
+S  = matrix(0, nrow=n_0[count],ncol = d_0[count])
+
+my_x = sqrt(Y)*t(apply(X,1,cumsum))
+
+S <- cbind(rep(S_0,n_0[count]),S_0*exp(constant*grid + sigma*my_x))
+
+S_T <- S[,d_0[count]] - K
+
+my_cat[1,] = S_T
+
+my_cat[2,] = 1:length(S_T)*0
+
+fair_price[count,runner] = mean(apply(my_cat,2,max))
+
+count = count + 1
+
+} 
+}
+
+proc.time() - ptm
+
+# Generating figures for Monte Carlo Final Group Project 
+
+## Fair Price Weekly Vs. Montly using Variance Gamma Model 
+
+g_range <- range(0 , fair_price[1,] , fair_price[2,]) # find the max and min of fair_prices for both sampling frequencies 
+
+plot(fair_price[1,] , type = 'o', col = 'black', ylim = g_range, axes= FALSE, ann = FALSE)  # plot fair price sample freq montly in black with yaxes given by max value, withold axes
+
+axis(1, at = 1:10, lab =c('Run 1', 'Run2','Run3','Run4','Run5','Run6','Run7','Run8','Run9','Run10')) # create the new x-axis 
+
+axis(2,las=1,at = 0:g_range[2]) # create the new y-axis 
+
+box() # Create a box for the figure
+
+lines(fair_price[2,] , type = 'o', col = 'blue') # plot fair price montly sample freq with dots linked with a blue line 
+
+title( 'Ten Iterations of Fair Price for Monthly and Weekly Sample Frequency: Variance Gamma Model For Asset Price') # Name 
+
+title(xlab = 'Iteration')
+title(ylab = 'Fair Price ($$)')
+
+legend(1,g_range[2],c('monthly','weekly'), cex = 0.8, col = c('black', 'blue') ,pch = 21:22, lty = 1:2 ) 
+
+
+## ########################################################################################################################
+# Fair Price: VG vs. Brownian Motion 
+
+monthly_VG <- fair_price[1,] # sample freq VG monthly values : fair price 
+
+weekly_VG <- fair_price[2,] # sample freq VG weekly values, fair price 
+
+monthly_BM <- fair_price_BM[1,] # sample freq BM monthly values, fair price 
+
+weekly_BM <- fair_price_BM[2,]  # sample freq BM weekly values, fair price 
+
+g_range <- range(0, monthly_VG, monthly_BM)
+
+plot(monthly_VG , type = 'o-', col = 'black', ylim = g_range, axes= FALSE, ann = FALSE)  # plot fair price sample freq montly in black with yaxes given by max value, withold axes
+
+axis(1, at = 1:10, lab =c('Run 1', 'Run2','Run3','Run4','Run5','Run6','Run7','Run8','Run9','Run10')) # create the new x-axis 
+
+axis(2,las=1,at = 0:1:ceil(g_range[2])) # create the new y-axis 
+
+box() # Create a box for the figure
+
+lines(monthly_BM , type = 'o', col = 'blue') # plot fair price montly sample freq with dots linked with a blue line 
+
+title( 'Ten Iterations of Fair Price for Monthly Sample Frequency: Variance Gamma and Brownian Motion') # Name 
+
+title(xlab = 'Iteration')
+title(ylab = 'Fair Price ($$)')
+
+legend(1,ceil(g_range[2])-2,c('Variance Gamma ','Brownian'), cex = 0.8, col = c('black', 'blue') ,pch = 21:22, lty = 1:2 ) # Move the legend out of the way, also, generate the legend 
+##########################################################################################################################
+
+g_range <- range(0, weekly_VG, weekly_BM)
+
+plot(weekly_VG , type = 'o-', col = 'black', ylim = g_range, axes= FALSE, ann = FALSE)  # plot fair price sample freq montly in black with yaxes given by max value, withold axes
+
+axis(1, at = 1:10, lab =c('Run 1', 'Run2','Run3','Run4','Run5','Run6','Run7','Run8','Run9','Run10')) # create the new x-axis 
+
+axis(2,las=1,at = seq(0,ceil(g_range[2]),5)) # create the new y-axis, and reset the tick marks so they are actually legible 
+
+box() # Create a box for the figure
+
+lines(weekly_BM , type = 'o', col = 'blue') # plot fair price montly sample freq with dots linked with a blue line 
+
+title( 'Ten Iterations of Fair Price for Weekly Sample Frequency: Variance Gamma and Brownian Motion') # Name 
+
+title(xlab = 'Iteration')
+title(ylab = 'Fair Price ($$)')
+
+legend(1,ceil(g_range[2])-2,c('Variance Gamma ','Brownian'), cex = 0.8, col = c('black', 'blue') ,pch = 21:22, lty = 1:2 ) # Move the legend out of the way, also, generate the legend 
+
+
+
+
+
+
+
+
